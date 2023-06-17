@@ -108,44 +108,25 @@ async function run() {
     // selected class api
 
     app.get("/select", async (req, res) => {
-      const result = await selectCollection.find().toArray();
+      let query = {};
+      if (req.query?.email) {
+        query = { email: req.query.email };
+      }
+      const result = await selectCollection.find(query).toArray();
       res.send(result);
     });
 
-    app.post("/select/check", async (req, res) => {
-      const { userId, classId } = req.body;
-      const existingSelection = await selectCollection.findOne({
-        userId: userId,
-        classId: classId,
-      });
-
-      if (existingSelection) {
-        res.json({ selected: true });
-      } else {
-        res.json({ selected: false });
-      }
+    app.post("/select", async (req, res) => {
+      const item = req.body;
+      const result = await selectCollection.insertOne(item);
+      res.send(result);
     });
 
-    app.post("/select", async (req, res) => {
-      const selectedClass = req.body;
-
-      // Check if the selected class already exists in the selectCollection
-      const existingClass = await selectCollection.findOne({
-        _id: selectedClass._id,
-      });
-      if (existingClass) {
-        return res.json({ message: "Class already selected" });
-      }
-
-      selectCollection
-        .insertOne(selectedClass)
-        .then(() => {
-          res.json({ message: "Class selected successfully" });
-        })
-        .catch((error) => {
-          console.error("Error inserting document:", error);
-          res.status(500).json({ message: "Failed to select class" });
-        });
+    app.delete("/select/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await selectCollection.deleteOne(query);
+      res.send(result);
     });
 
     // users apis
@@ -188,6 +169,13 @@ async function run() {
     app.post("/class", async (req, res) => {
       const newClass = req.body;
       const result = await classCollection.insertOne(newClass);
+      res.send(result);
+    });
+
+    app.delete("/class/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await classCollection.deleteOne(query);
       res.send(result);
     });
 
