@@ -3,6 +3,7 @@ const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
+const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -35,7 +36,9 @@ const verifyJWT = (req, res, next) => {
 
 // ---------------------------
 
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.y1sglpm.mongodb.net/?retryWrites=true&w=majority`;
+const uri = `mongodb+srv://${process.env.USER_DB}:${process.env.USER_PASS}@cluster0.y1sglpm.mongodb.net/?retryWrites=true&w=majority`;
+
+console.log(process.env.USER_DB);
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -59,6 +62,24 @@ async function run() {
   }
 }
 run().catch(console.dir);
+
+// ---------------------------
+app.post("/create-payment-intent", async (req, res) => {
+  const { price } = req.body;
+  const ammount = price * 100;
+
+  // Create a PaymentIntent with the order amount and currency
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: ammount,
+    currency: "usd",
+
+    payment_method_types: ["card"],
+  });
+
+  res.send({
+    clientSecret: paymentIntent.client_secret,
+  });
+});
 
 // ---------------------------
 
@@ -119,6 +140,24 @@ app.get("/users/student/:email", verifyJWT, async (req, res) => {
   const query = { email: email };
   const user = await usersCollection.findOne(query);
   const result = { student: !user?.role };
+  res.send(result);
+});
+
+// selected classes collection apis
+app.get("/SelectedClassess", verifyJWT, async (req, res) => {
+  const email = req.query.email;
+
+  if (!email) {
+    res.send([]);
+  }
+
+  const decodedEmail = req.decoded.email;
+  if (email !== decodedEmail) {
+    return res.status(403).send({ error: true, message: "forbidden access" });
+  }
+
+  const query = { email: email };
+  const result = await classCollection.find(query).toArray();
   res.send(result);
 });
 
